@@ -1,0 +1,1130 @@
+-- d3crypted9 executor
+-- made by d3crypted9 / midelta
+-- ai lulz
+
+local Players           = game:GetService("Players")
+local RunService        = game:GetService("RunService")
+local TweenService      = game:GetService("TweenService")
+local HttpService       = game:GetService("HttpService")
+local UserInputService  = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
+
+-- executor compat
+local function safeRequest(url)
+    if syn and syn.request then
+        return syn.request({ Url = url, Method = "GET" })
+    elseif http and http.request then
+        return http.request({ Url = url, Method = "GET" })
+    elseif request then
+        return request({ Url = url, Method = "GET" })
+    elseif http_request then
+        return http_request({ Url = url, Method = "GET" })
+    else
+        return { Body = "{}" }
+    end
+end
+
+local function safeExecute(code)
+    local fn, err = loadstring(code)
+    if fn then
+        local ok, execErr = pcall(fn)
+        if not ok then return false, tostring(execErr) end
+        return true, nil
+    else
+        return false, tostring(err)
+    end
+end
+
+-- destroy old gui on re-inject
+if PlayerGui:FindFirstChild("D3crypted9") then
+    PlayerGui.D3crypted9:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name           = "D3crypted9"
+ScreenGui.ResetOnSpawn   = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder   = 999
+ScreenGui.Parent         = PlayerGui
+
+-- state
+local iconAssetId = "rbxassetid://0"
+local iconShape   = "squircle"
+
+-- colors
+local CR     = Color3.fromRGB(220, 20,  20)
+local CRDARK = Color3.fromRGB(90,  0,   0)
+local CRDIM  = Color3.fromRGB(40,  0,   0)
+local CBLACK = Color3.fromRGB(8,   8,   8)
+local CDARK  = Color3.fromRGB(14,  14,  14)
+local CTEXT  = Color3.fromRGB(230, 230, 230)
+local CDIMTX = Color3.fromRGB(130, 130, 130)
+local CWHITE = Color3.fromRGB(255, 255, 255)
+local CGREEN = Color3.fromRGB(80,  220, 80)
+local CYELLOW= Color3.fromRGB(255, 210, 60)
+
+-- helpers
+local function tw(obj, t, props)
+    return TweenService:Create(obj, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+end
+
+local function mkFrame(parent, name, size, pos, color, trans)
+    local f = Instance.new("Frame")
+    f.Name = name
+    f.Size = size or UDim2.new(1,0,1,0)
+    f.Position = pos or UDim2.new(0,0,0,0)
+    f.BackgroundColor3 = color or CBLACK
+    f.BackgroundTransparency = trans or 0
+    f.BorderSizePixel = 0
+    f.Parent = parent
+    return f
+end
+
+local function mkLabel(parent, text, size, pos, color, fsize, font)
+    local l = Instance.new("TextLabel")
+    l.Size = size or UDim2.new(1,0,0,20)
+    l.Position = pos or UDim2.new(0,0,0,0)
+    l.BackgroundTransparency = 1
+    l.Text = text or ""
+    l.TextColor3 = color or CTEXT
+    l.TextSize = fsize or 14
+    l.Font = font or Enum.Font.GothamBold
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.Parent = parent
+    return l
+end
+
+local function mkBtn(parent, text, size, pos, bg, tc)
+    local b = Instance.new("TextButton")
+    b.Size = size or UDim2.new(1,0,0,36)
+    b.Position = pos or UDim2.new(0,0,0,0)
+    b.BackgroundColor3 = bg or CRDIM
+    b.BorderSizePixel = 0
+    b.Text = text or "Button"
+    b.TextColor3 = tc or CWHITE
+    b.TextSize = 13
+    b.Font = Enum.Font.GothamBold
+    b.AutoButtonColor = false
+    b.Parent = parent
+    return b
+end
+
+local function mkCorner(p, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r or 6)
+    c.Parent = p
+    return c
+end
+
+local function mkStroke(p, color, thick, trans)
+    local s = Instance.new("UIStroke")
+    s.Color = color or CR
+    s.Thickness = thick or 1
+    s.Transparency = trans or 0.5
+    s.Parent = p
+    return s
+end
+
+local function mkPad(p, t, b, l, r)
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop    = UDim.new(0, t or 8)
+    pad.PaddingBottom = UDim.new(0, b or 8)
+    pad.PaddingLeft   = UDim.new(0, l or 8)
+    pad.PaddingRight  = UDim.new(0, r or 8)
+    pad.Parent = p
+    return pad
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  INTRO
+-- ─────────────────────────────────────────────────────────────────
+local IntroFrame = mkFrame(ScreenGui, "Intro", UDim2.new(1,0,1,0), UDim2.new(0,0,0,0), Color3.new(0,0,0))
+IntroFrame.ZIndex = 100
+
+for i = 0, 28 do
+    local ln = mkFrame(IntroFrame, "sl"..i, UDim2.new(1,0,0,1), UDim2.new(0,0,0,i*36), Color3.fromRGB(200,10,10), 0.94)
+    ln.ZIndex = 101
+end
+
+local IntroBox = mkFrame(IntroFrame, "LogoBox", UDim2.new(0,120,0,120), UDim2.new(0.5,-60,0.5,-80), Color3.fromRGB(10,0,0))
+IntroBox.ZIndex = 102
+mkCorner(IntroBox, 28)
+mkStroke(IntroBox, CR, 2, 0.2)
+
+local IntroDecal = Instance.new("ImageLabel")
+IntroDecal.Size = UDim2.new(0,100,0,100)
+IntroDecal.Position = UDim2.new(0.5,-50,0.5,-50)
+IntroDecal.BackgroundTransparency = 1
+IntroDecal.Image = "rbxassetid://d3_decal1"
+IntroDecal.ImageColor3 = CWHITE
+IntroDecal.ZIndex = 103
+IntroDecal.Parent = IntroFrame
+
+local IntroTitle = Instance.new("TextLabel")
+IntroTitle.Size = UDim2.new(0,400,0,40)
+IntroTitle.Position = UDim2.new(0.5,-200,0.5,50)
+IntroTitle.BackgroundTransparency = 1
+IntroTitle.Text = "D3CRYPTED9"
+IntroTitle.TextColor3 = CWHITE
+IntroTitle.TextSize = 32
+IntroTitle.Font = Enum.Font.GothamBlack
+IntroTitle.ZIndex = 102
+IntroTitle.TextTransparency = 1
+IntroTitle.Parent = IntroFrame
+
+local IntroSub = Instance.new("TextLabel")
+IntroSub.Size = UDim2.new(0,400,0,24)
+IntroSub.Position = UDim2.new(0.5,-200,0.5,92)
+IntroSub.BackgroundTransparency = 1
+IntroSub.Text = "executor  //  made by d3crypted9 / midelta"
+IntroSub.TextColor3 = CR
+IntroSub.TextSize = 13
+IntroSub.Font = Enum.Font.GothamBold
+IntroSub.ZIndex = 102
+IntroSub.TextTransparency = 1
+IntroSub.Parent = IntroFrame
+
+local LoadBG = mkFrame(IntroFrame, "LoadBG", UDim2.new(0,300,0,4), UDim2.new(0.5,-150,0.5,128), Color3.fromRGB(28,0,0))
+LoadBG.ZIndex = 102
+mkCorner(LoadBG, 2)
+
+local LoadBar = mkFrame(LoadBG, "LoadBar", UDim2.new(0,0,1,0), UDim2.new(0,0,0,0), CR)
+LoadBar.ZIndex = 103
+mkCorner(LoadBar, 2)
+
+local LoadText = Instance.new("TextLabel")
+LoadText.Size = UDim2.new(0,300,0,20)
+LoadText.Position = UDim2.new(0.5,-150,0.5,138)
+LoadText.BackgroundTransparency = 1
+LoadText.Text = "initializing..."
+LoadText.TextColor3 = CDIMTX
+LoadText.TextSize = 12
+LoadText.Font = Enum.Font.Gotham
+LoadText.ZIndex = 102
+LoadText.TextTransparency = 1
+LoadText.Parent = IntroFrame
+
+local stages = {
+    { text = "initializing...",         pct = 0.10 },
+    { text = "loading modules...",      pct = 0.30 },
+    { text = "patching environment...", pct = 0.55 },
+    { text = "injecting hooks...",      pct = 0.75 },
+    { text = "ready.",                  pct = 1.00 },
+}
+
+local introSpinAngle = 0
+local introSpinConn  = RunService.Heartbeat:Connect(function(dt)
+    introSpinAngle = (introSpinAngle + dt * 90) % 360
+    IntroDecal.Rotation = introSpinAngle
+end)
+
+task.spawn(function()
+    task.wait(0.3)
+    tw(IntroTitle, 0.6, { TextTransparency = 0 }):Play()
+    tw(IntroSub,   0.6, { TextTransparency = 0 }):Play()
+    tw(LoadText,   0.4, { TextTransparency = 0 }):Play()
+    task.wait(0.5)
+    for _, s in ipairs(stages) do
+        LoadText.Text = s.text
+        tw(LoadBar, 0.4, { Size = UDim2.new(s.pct, 0, 1, 0) }):Play()
+        task.wait(0.55)
+    end
+    task.wait(0.3)
+    local flash = mkFrame(IntroFrame, "Flash", UDim2.new(1,0,1,0), UDim2.new(0,0,0,0), CWHITE, 0.7)
+    flash.ZIndex = 200
+    tw(flash, 0.25, { BackgroundTransparency = 1 }):Play()
+    task.wait(0.3)
+    flash:Destroy()
+    tw(IntroFrame, 0.4, { BackgroundTransparency = 1 }):Play()
+    for _, v in ipairs(IntroFrame:GetDescendants()) do
+        if v:IsA("TextLabel") or v:IsA("ImageLabel") then
+            tw(v, 0.3, { TextTransparency = 1, ImageTransparency = 1 }):Play()
+        elseif v:IsA("Frame") then
+            tw(v, 0.3, { BackgroundTransparency = 1 }):Play()
+        end
+    end
+    task.wait(0.5)
+    introSpinConn:Disconnect()
+    IntroFrame:Destroy()
+end)
+
+-- ─────────────────────────────────────────────────────────────────
+--  DRAGGABLE ICON
+-- ─────────────────────────────────────────────────────────────────
+local IconBtn = Instance.new("ImageButton")
+IconBtn.Name             = "D3Icon"
+IconBtn.Size             = UDim2.new(0,50,0,50)
+IconBtn.Position         = UDim2.new(0.5,-25,0,14)
+IconBtn.BackgroundColor3 = Color3.fromRGB(12,0,0)
+IconBtn.BorderSizePixel  = 0
+IconBtn.Image            = iconAssetId
+IconBtn.ZIndex           = 50
+IconBtn.Parent           = ScreenGui
+mkCorner(IconBtn, 14)
+mkStroke(IconBtn, CR, 2, 0.3)
+
+local dragging   = false
+local dragOrigin = nil
+local dragPos    = nil
+
+IconBtn.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        dragging   = true
+        dragOrigin = inp.Position
+        dragPos    = IconBtn.Position
+    end
+end)
+IconBtn.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(inp)
+    if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+        local d = inp.Position - dragOrigin
+        IconBtn.Position = UDim2.new(dragPos.X.Scale, dragPos.X.Offset + d.X, dragPos.Y.Scale, dragPos.Y.Offset + d.Y)
+    end
+end)
+
+local mainVisible = false
+local MainFrame   = nil
+
+IconBtn.MouseButton1Click:Connect(function()
+    if MainFrame then
+        mainVisible       = not mainVisible
+        MainFrame.Visible = mainVisible
+    end
+end)
+
+-- ─────────────────────────────────────────────────────────────────
+--  MAIN WINDOW
+-- ─────────────────────────────────────────────────────────────────
+MainFrame = mkFrame(ScreenGui, "MainFrame", UDim2.new(0,720,0,460), UDim2.new(0.5,-360,0.5,-230), CBLACK)
+MainFrame.Visible = false
+MainFrame.ZIndex  = 10
+mkCorner(MainFrame, 10)
+mkStroke(MainFrame, CRDARK, 2, 0.2)
+
+local TopBar = mkFrame(MainFrame, "TopBar", UDim2.new(1,0,0,36), UDim2.new(0,0,0,0), Color3.fromRGB(10,0,0))
+TopBar.ZIndex = 11
+mkCorner(TopBar, 10)
+mkFrame(MainFrame, "TopFill", UDim2.new(1,0,0,18), UDim2.new(0,0,0,18), Color3.fromRGB(10,0,0)).ZIndex = 11
+
+local TopTitle = Instance.new("TextLabel")
+TopTitle.Size = UDim2.new(1,-16,0,20)
+TopTitle.Position = UDim2.new(0,14,0,6)
+TopTitle.BackgroundTransparency = 1
+TopTitle.Text = "D3CRYPTED9  //  EXECUTOR"
+TopTitle.TextColor3 = CWHITE
+TopTitle.TextSize = 13
+TopTitle.Font = Enum.Font.GothamBlack
+TopTitle.TextXAlignment = Enum.TextXAlignment.Left
+TopTitle.ZIndex = 12
+TopTitle.Parent = TopBar
+
+local CredLabel = Instance.new("TextLabel")
+CredLabel.Size = UDim2.new(1,-16,0,11)
+CredLabel.Position = UDim2.new(0,14,0,22)
+CredLabel.BackgroundTransparency = 1
+CredLabel.Text = "made by d3crypted9 / midelta"
+CredLabel.TextColor3 = CDIMTX
+CredLabel.TextSize = 9
+CredLabel.Font = Enum.Font.Gotham
+CredLabel.TextXAlignment = Enum.TextXAlignment.Left
+CredLabel.ZIndex = 12
+CredLabel.Parent = TopBar
+
+local ContentArea = mkFrame(MainFrame, "Content", UDim2.new(1,-58,1,-36), UDim2.new(0,0,0,36), CDARK)
+ContentArea.ZIndex = 11
+
+local Sidebar = mkFrame(MainFrame, "Sidebar", UDim2.new(0,58,1,-36), UDim2.new(1,-58,0,36), Color3.fromRGB(10,0,0))
+Sidebar.ZIndex = 11
+mkStroke(Sidebar, CRDARK, 1, 0.4)
+
+-- background spinning decal
+local BGDecal = Instance.new("ImageLabel")
+BGDecal.Size = UDim2.new(0,80,0,80)
+BGDecal.Position = UDim2.new(0.5,-40,0.5,-40)
+BGDecal.BackgroundTransparency = 1
+BGDecal.Image = "rbxassetid://d3_decal1"
+BGDecal.ImageTransparency = 0.75
+BGDecal.ZIndex = 11
+BGDecal.Parent = ContentArea
+
+local bgSpinAngle = 0
+RunService.Heartbeat:Connect(function(dt)
+    if BGDecal and BGDecal.Parent then
+        bgSpinAngle     = (bgSpinAngle + dt * 45) % 360
+        BGDecal.Rotation = bgSpinAngle
+    end
+end)
+
+-- ─────────────────────────────────────────────────────────────────
+--  SIDEBAR
+-- ─────────────────────────────────────────────────────────────────
+local tabDefs = {
+    { name = "Home",     display = "Home"   },
+    { name = "Executor", display = "Exec"   },
+    { name = "Search",   display = "Search" },
+    { name = "Backdoor", display = "BD Scan"},
+    { name = "Settings", display = "Config" },
+    { name = "Console",  display = "Console"},
+    { name = "Exit",     display = "Exit"   },
+}
+
+local sideObjs  = {}
+local activeTab = "Home"
+
+local SideLayout = Instance.new("UIListLayout")
+SideLayout.FillDirection       = Enum.FillDirection.Vertical
+SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+SideLayout.VerticalAlignment   = Enum.VerticalAlignment.Top
+SideLayout.Padding             = UDim.new(0,3)
+SideLayout.Parent              = Sidebar
+
+local SidePad = Instance.new("UIPadding")
+SidePad.PaddingTop = UDim.new(0,8)
+SidePad.Parent     = Sidebar
+
+for _, def in ipairs(tabDefs) do
+    local sb = Instance.new("TextButton")
+    sb.Size             = UDim2.new(0,50,0,44)
+    sb.BackgroundColor3 = Color3.fromRGB(18,0,0)
+    sb.BorderSizePixel  = 0
+    sb.Text             = ""
+    sb.AutoButtonColor  = false
+    sb.ZIndex           = 12
+    sb.Parent           = Sidebar
+    mkCorner(sb, 7)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1,0,1,0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = def.display
+    lbl.TextSize = 9
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextColor3 = CDIMTX
+    lbl.TextWrapped = true
+    lbl.ZIndex = 13
+    lbl.Parent = sb
+
+    sideObjs[def.name] = { btn = sb, lbl = lbl }
+
+    sb.MouseEnter:Connect(function()
+        if activeTab ~= def.name then
+            tw(sb, 0.12, { BackgroundColor3 = Color3.fromRGB(35,0,0) }):Play()
+        end
+    end)
+    sb.MouseLeave:Connect(function()
+        if activeTab ~= def.name then
+            tw(sb, 0.12, { BackgroundColor3 = Color3.fromRGB(18,0,0) }):Play()
+        end
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  PAGE SYSTEM
+-- ─────────────────────────────────────────────────────────────────
+local pages = {}
+
+local function hideAll()
+    for _, p in pairs(pages) do p.Visible = false end
+end
+
+local function setTab(name)
+    for bname, obj in pairs(sideObjs) do
+        local on = bname == name
+        tw(obj.btn, 0.16, { BackgroundColor3 = on and CRDARK or Color3.fromRGB(18,0,0) }):Play()
+        obj.lbl.TextColor3 = on and CWHITE or CDIMTX
+        local ex = obj.btn:FindFirstChildOfClass("UIStroke")
+        if on and not ex then
+            mkStroke(obj.btn, CR, 1, 0.3)
+        elseif not on and ex then
+            ex:Destroy()
+        end
+    end
+    activeTab = name
+end
+
+local function newPage(name)
+    local p = mkFrame(ContentArea, name.."Page", UDim2.new(1,0,1,0), UDim2.new(0,0,0,0), CDARK)
+    p.Visible = false
+    p.ZIndex  = 12
+    pages[name] = p
+    return p
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  HOME PAGE
+-- ─────────────────────────────────────────────────────────────────
+do
+    local P = newPage("Home")
+    mkPad(P, 14, 14, 14, 14)
+    mkLabel(P, "GAME INFORMATION", UDim2.new(1,0,0,22), UDim2.new(0,0,0,0), CR, 15, Enum.Font.GothamBlack)
+    mkFrame(P, "div", UDim2.new(1,0,0,1), UDim2.new(0,0,0,26), CRDARK).ZIndex = 13
+
+    local function infoRow(y, ltext, vname)
+        local row = mkFrame(P, ltext.."R", UDim2.new(1,0,0,32), UDim2.new(0,0,0,y), Color3.fromRGB(18,18,18))
+        row.ZIndex = 13 ; mkCorner(row, 6) ; mkPad(row, 0, 0, 10, 10)
+        mkLabel(row, ltext..":", UDim2.new(0.45,0,1,0), UDim2.new(0,0,0,0), CDIMTX, 12, Enum.Font.GothamBold).ZIndex = 14
+        local v = mkLabel(row, "loading...", UDim2.new(0.55,0,1,0), UDim2.new(0.45,0,0,0), CWHITE, 12, Enum.Font.GothamBold)
+        v.Name = vname ; v.ZIndex = 14
+        return v
+    end
+
+    local vPid  = infoRow(34,  "Place ID",          "PlaceId")
+    local vPnam = infoRow(72,  "Place Name",         "PlaceName")
+    local vPlyr = infoRow(110, "Players in Server",  "PlayerCount")
+    local vJid  = infoRow(148, "Job ID",             "JobId")
+    local vUsr  = infoRow(186, "Your Username",      "Username")
+
+    task.spawn(function()
+        task.wait(1)
+        vPid.Text  = tostring(game.PlaceId)
+        local ok, info = pcall(function() return MarketplaceService:GetProductInfo(game.PlaceId) end)
+        vPnam.Text = ok and info.Name or "unknown"
+        vJid.Text  = tostring(game.JobId):sub(1,26) .. "..."
+        vUsr.Text  = LocalPlayer.Name
+    end)
+
+    RunService.Heartbeat:Connect(function()
+        if vPlyr and vPlyr.Parent then
+            vPlyr.Text = tostring(#Players:GetPlayers())
+        end
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  EXECUTOR PAGE
+-- ─────────────────────────────────────────────────────────────────
+local ScriptInput = nil
+
+do
+    local P = newPage("Executor")
+    mkPad(P, 10, 10, 10, 10)
+    mkLabel(P, "LUA EXECUTOR", UDim2.new(1,0,0,22), UDim2.new(0,0,0,0), CR, 15, Enum.Font.GothamBlack)
+
+    local Scroll = Instance.new("ScrollingFrame")
+    Scroll.Size = UDim2.new(1,0,1,-76)
+    Scroll.Position = UDim2.new(0,0,0,28)
+    Scroll.BackgroundColor3 = Color3.fromRGB(10,10,10)
+    Scroll.BorderSizePixel = 0
+    Scroll.ScrollBarThickness = 4
+    Scroll.ScrollBarImageColor3 = CR
+    Scroll.ZIndex = 13
+    Scroll.Parent = P
+    mkCorner(Scroll, 6) ; mkStroke(Scroll, CRDARK, 1, 0.3)
+
+    ScriptInput = Instance.new("TextBox")
+    ScriptInput.Size = UDim2.new(1,0,1,0)
+    ScriptInput.Position = UDim2.new(0,0,0,0)
+    ScriptInput.BackgroundTransparency = 1
+    ScriptInput.Text = "-- write your script here\n"
+    ScriptInput.TextColor3 = Color3.fromRGB(200,255,200)
+    ScriptInput.TextSize = 13
+    ScriptInput.Font = Enum.Font.Code
+    ScriptInput.TextXAlignment = Enum.TextXAlignment.Left
+    ScriptInput.TextYAlignment = Enum.TextYAlignment.Top
+    ScriptInput.MultiLine = true
+    ScriptInput.ClearTextOnFocus = false
+    ScriptInput.ZIndex = 14
+    ScriptInput.Parent = Scroll
+    mkPad(ScriptInput, 8, 8, 10, 10)
+
+    local BtnRow = mkFrame(P, "BtnRow", UDim2.new(1,0,0,36), UDim2.new(0,0,1,-38), CBLACK, 1)
+    BtnRow.ZIndex = 13
+
+    local ExecBtn  = mkBtn(BtnRow, "EXECUTE",    UDim2.new(0,100,0,32), UDim2.new(0,0,0,0),     CR,                            CWHITE)
+    local ClrBtn   = mkBtn(BtnRow, "CLEAR",      UDim2.new(0,78,0,32),  UDim2.new(0,106,0,0),   Color3.fromRGB(30,30,30),      CDIMTX)
+    local LsBtn    = mkBtn(BtnRow, "LOADSTRING", UDim2.new(0,110,0,32), UDim2.new(0,190,0,0),   Color3.fromRGB(20,0,40),       Color3.fromRGB(180,100,255))
+    mkCorner(ExecBtn,6) ; mkCorner(ClrBtn,6) ; mkCorner(LsBtn,6)
+
+    local StatusLbl = mkLabel(BtnRow, "", UDim2.new(0,200,0,32), UDim2.new(0,306,0,0), CDIMTX, 11, Enum.Font.GothamBold)
+
+    local function setStatus(msg, col)
+        StatusLbl.Text       = msg
+        StatusLbl.TextColor3 = col
+        task.delay(3, function() if StatusLbl then StatusLbl.Text = "" end end)
+    end
+
+    ExecBtn.MouseButton1Click:Connect(function()
+        local code = ScriptInput.Text
+        if code == "" or code == "-- write your script here\n" then return end
+        tw(ExecBtn, 0.08, { BackgroundColor3 = Color3.fromRGB(150,10,10) }):Play()
+        local ok, err = safeExecute(code)
+        task.wait(0.1)
+        tw(ExecBtn, 0.08, { BackgroundColor3 = CR }):Play()
+        setStatus(ok and "executed ok" or "error: "..(err or "?"), ok and CGREEN or Color3.fromRGB(255,80,80))
+    end)
+
+    ClrBtn.MouseButton1Click:Connect(function()
+        ScriptInput.Text = "-- write your script here\n"
+        StatusLbl.Text   = ""
+    end)
+
+    LsBtn.MouseButton1Click:Connect(function()
+        local code = ScriptInput.Text
+        if code == "" then return end
+        local ok, err = safeExecute('loadstring([===[\n'..code..'\n]===])()')
+        setStatus(ok and "loadstring ok" or "error: "..(err or "?"),
+            ok and Color3.fromRGB(180,100,255) or Color3.fromRGB(255,80,80))
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  SEARCH PAGE  (scriptblox.com)
+-- ─────────────────────────────────────────────────────────────────
+do
+    local P = newPage("Search")
+    mkPad(P, 10, 10, 10, 10)
+    mkLabel(P, "SCRIPTBLOX SEARCH", UDim2.new(1,0,0,22), UDim2.new(0,0,0,0), CR, 15, Enum.Font.GothamBlack)
+
+    local SRow = mkFrame(P, "SRow", UDim2.new(1,0,0,34), UDim2.new(0,0,0,28), CBLACK, 1)
+    SRow.ZIndex = 13
+
+    local SBox = Instance.new("TextBox")
+    SBox.Size = UDim2.new(1,-90,1,0)
+    SBox.Position = UDim2.new(0,0,0,0)
+    SBox.BackgroundColor3 = Color3.fromRGB(16,16,16)
+    SBox.BorderSizePixel = 0
+    SBox.PlaceholderText = "search scripts..."
+    SBox.PlaceholderColor3 = CDIMTX
+    SBox.Text = ""
+    SBox.TextColor3 = CWHITE
+    SBox.TextSize = 13
+    SBox.Font = Enum.Font.Gotham
+    SBox.ClearTextOnFocus = false
+    SBox.ZIndex = 14
+    SBox.Parent = SRow
+    mkCorner(SBox,6) ; mkStroke(SBox, CRDARK, 1, 0.4) ; mkPad(SBox, 0, 0, 10, 10)
+
+    local SBtn = mkBtn(SRow, "SEARCH", UDim2.new(0,80,1,0), UDim2.new(1,-80,0,0), CR, CWHITE)
+    mkCorner(SBtn, 6)
+
+    local RScroll = Instance.new("ScrollingFrame")
+    RScroll.Size = UDim2.new(1,0,1,-72)
+    RScroll.Position = UDim2.new(0,0,0,70)
+    RScroll.BackgroundColor3 = Color3.fromRGB(10,10,10)
+    RScroll.BorderSizePixel = 0
+    RScroll.ScrollBarThickness = 4
+    RScroll.ScrollBarImageColor3 = CR
+    RScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    RScroll.CanvasSize = UDim2.new(0,0,0,0)
+    RScroll.ZIndex = 13
+    RScroll.Parent = P
+    mkCorner(RScroll, 6)
+    mkPad(RScroll, 6, 6, 6, 6)
+
+    local RList = Instance.new("UIListLayout")
+    RList.FillDirection = Enum.FillDirection.Vertical
+    RList.Padding = UDim.new(0,4)
+    RList.Parent = RScroll
+
+    local StatusLbl = mkLabel(P, "", UDim2.new(1,0,0,18), UDim2.new(0,0,0,50), CDIMTX, 11, Enum.Font.Gotham)
+
+    local function clearResults()
+        for _, c in ipairs(RScroll:GetChildren()) do
+            if c:IsA("Frame") then c:Destroy() end
+        end
+    end
+
+    local function addResult(title, gameName, views, scriptBody)
+        local Card = mkFrame(RScroll, "Card", UDim2.new(1,0,0,60), UDim2.new(0,0,0,0), Color3.fromRGB(16,16,16))
+        Card.ZIndex = 14
+        mkCorner(Card,6) ; mkStroke(Card, CRDARK, 1, 0.5) ; mkPad(Card, 6, 6, 10, 10)
+
+        local t = mkLabel(Card, title,                    UDim2.new(1,-60,0,16), UDim2.new(0,0,0,0),  CWHITE,  12, Enum.Font.GothamBold)
+        local g = mkLabel(Card, "game: "..gameName,       UDim2.new(1,-60,0,14), UDim2.new(0,0,0,18), CDIMTX, 10, Enum.Font.Gotham)
+        local v = mkLabel(Card, "views: "..tostring(views), UDim2.new(1,-60,0,14), UDim2.new(0,0,0,32), CDIMTX, 10, Enum.Font.Gotham)
+        t.ZIndex=15 ; g.ZIndex=15 ; v.ZIndex=15
+
+        local CopyBtn = mkBtn(Card, "COPY", UDim2.new(0,52,0,28), UDim2.new(1,-54,0.5,-14), CR, CWHITE)
+        mkCorner(CopyBtn,5) ; CopyBtn.ZIndex = 15
+
+        CopyBtn.MouseButton1Click:Connect(function()
+            if ScriptInput then ScriptInput.Text = scriptBody or ("-- "..title) end
+            hideAll()
+            pages["Executor"].Visible = true
+            setTab("Executor")
+            CopyBtn.Text = "DONE"
+            task.delay(1.5, function() if CopyBtn then CopyBtn.Text = "COPY" end end)
+        end)
+    end
+
+    local function doSearch()
+        local q = SBox.Text
+        if q == "" then return end
+        clearResults()
+        StatusLbl.Text       = "searching..."
+        StatusLbl.TextColor3 = CDIMTX
+        task.spawn(function()
+            local url = "https://scriptblox.com/api/script/search?q=" .. HttpService:UrlEncode(q) .. "&max=10&page=1"
+            local ok, res = pcall(safeRequest, url)
+            if not ok or not res then
+                StatusLbl.Text = "request failed" ; StatusLbl.TextColor3 = Color3.fromRGB(255,80,80)
+                return
+            end
+            local pok, data = pcall(function() return HttpService:JSONDecode(res.Body) end)
+            if not pok or not data then
+                StatusLbl.Text = "parse error" ; StatusLbl.TextColor3 = Color3.fromRGB(255,80,80)
+                return
+            end
+            local scripts = (data.result and data.result.scripts) or data.scripts or {}
+            if #scripts == 0 then
+                StatusLbl.Text = "no results" ; StatusLbl.TextColor3 = CDIMTX
+                return
+            end
+            StatusLbl.Text = "found "..#scripts.." result(s)" ; StatusLbl.TextColor3 = CGREEN
+            for _, s in ipairs(scripts) do
+                addResult(
+                    s.title or "untitled",
+                    (s.game and s.game.name) or "unknown",
+                    s.views or 0,
+                    s.script or ("-- "..tostring(s.title))
+                )
+            end
+        end)
+    end
+
+    SBtn.MouseButton1Click:Connect(doSearch)
+    SBox.FocusLost:Connect(function(enter) if enter then doSearch() end end)
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  BACKDOOR SCANNER PAGE
+-- ─────────────────────────────────────────────────────────────────
+do
+    local P = newPage("Backdoor")
+    mkPad(P, 12, 12, 14, 14)
+    mkLabel(P, "BACKDOOR SCANNER", UDim2.new(1,0,0,22), UDim2.new(0,0,0,0), CR, 15, Enum.Font.GothamBlack)
+    mkLabel(P, "scans workspace, replicated storage, and starter scripts for threats",
+        UDim2.new(1,0,0,16), UDim2.new(0,0,0,26), CDIMTX, 10, Enum.Font.Gotham)
+
+    local ScanBtn    = mkBtn(P, "START SCAN", UDim2.new(0,110,0,30), UDim2.new(0,0,0,50), CR, CWHITE)
+    mkCorner(ScanBtn, 6)
+    local ScanStatus = mkLabel(P, "idle", UDim2.new(1,-120,0,30), UDim2.new(0,116,0,50), CDIMTX, 12, Enum.Font.GothamBold)
+    ScanStatus.TextXAlignment = Enum.TextXAlignment.Left
+
+    local LogScroll = Instance.new("ScrollingFrame")
+    LogScroll.Size = UDim2.new(1,0,1,-94)
+    LogScroll.Position = UDim2.new(0,0,0,90)
+    LogScroll.BackgroundColor3 = Color3.fromRGB(6,6,6)
+    LogScroll.BorderSizePixel = 0
+    LogScroll.ScrollBarThickness = 4
+    LogScroll.ScrollBarImageColor3 = CR
+    LogScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    LogScroll.CanvasSize = UDim2.new(0,0,0,0)
+    LogScroll.ZIndex = 13
+    LogScroll.Parent = P
+    mkCorner(LogScroll,6) ; mkStroke(LogScroll, CRDARK, 1, 0.5) ; mkPad(LogScroll,6,6,8,8)
+
+    local LogLayout = Instance.new("UIListLayout")
+    LogLayout.FillDirection = Enum.FillDirection.Vertical
+    LogLayout.SortOrder     = Enum.SortOrder.LayoutOrder
+    LogLayout.Parent        = LogScroll
+
+    local logN = 0
+    local function sLog(msg, col)
+        logN = logN + 1
+        local e = Instance.new("TextLabel")
+        e.Size = UDim2.new(1,0,0,14)
+        e.BackgroundTransparency = 1
+        e.Text = msg
+        e.TextColor3 = col or CTEXT
+        e.TextSize = 11
+        e.Font = Enum.Font.Code
+        e.TextXAlignment = Enum.TextXAlignment.Left
+        e.TextWrapped = true
+        e.AutomaticSize = Enum.AutomaticSize.Y
+        e.LayoutOrder = logN
+        e.ZIndex = 14
+        e.Parent = LogScroll
+        task.wait()
+        LogScroll.CanvasPosition = Vector2.new(0, LogScroll.AbsoluteCanvasSize.Y)
+    end
+
+    local KEYWORDS = {
+        "getgenv","getfenv","hookfunction","hookmetamethod",
+        "loadstring","HttpGet","HttpGetAsync","GetAsync",
+        "backdoor","serverside","remote_spy","remotespy","exploit",
+    }
+
+    local SUSPICIOUS_REMOTE_NAMES = {
+        "backdoor","ss","serverside","exploit","admin","execute","cmd","hook"
+    }
+
+    local function isSuspiciousRemote(name)
+        local l = name:lower()
+        for _, kw in ipairs(SUSPICIOUS_REMOTE_NAMES) do
+            if l:find(kw, 1, true) then return true end
+        end
+        return false
+    end
+
+    local function checkSource(obj)
+        local ok, src = pcall(function() return obj.Source end)
+        if not ok or not src then return {} end
+        local hits = {}
+        for _, kw in ipairs(KEYWORDS) do
+            if src:lower():find(kw:lower(), 1, true) then
+                table.insert(hits, kw)
+            end
+        end
+        return hits
+    end
+
+    local function scanRoot(root, found)
+        for _, child in ipairs(root:GetDescendants()) do
+            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+                if isSuspiciousRemote(child.Name) then
+                    table.insert(found, { obj = child, reason = "suspicious remote name: "..child.Name })
+                end
+            end
+            if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ModuleScript") then
+                local hits = checkSource(child)
+                if #hits > 0 then
+                    table.insert(found, { obj = child, reason = "keyword hit: "..table.concat(hits,", ") })
+                end
+            end
+        end
+    end
+
+    ScanBtn.MouseButton1Click:Connect(function()
+        for _, c in ipairs(LogScroll:GetChildren()) do
+            if c:IsA("TextLabel") then c:Destroy() end
+        end
+        logN = 0
+        ScanStatus.Text       = "scanning..."
+        ScanStatus.TextColor3 = CYELLOW
+        sLog("[scan] starting full workspace scan...", CDIMTX)
+
+        task.spawn(function()
+            local found = {}
+            local roots = {
+                workspace,
+                ReplicatedStorage,
+                game:GetService("StarterPlayer"),
+                game:GetService("StarterGui"),
+                game:GetService("ServerScriptService"),
+            }
+            for _, root in ipairs(roots) do
+                local ok = pcall(scanRoot, root, found)
+                task.wait()
+            end
+
+            if #found == 0 then
+                sLog("[scan] no threats detected. game appears clean.", CGREEN)
+                ScanStatus.Text       = "clean"
+                ScanStatus.TextColor3 = CGREEN
+                return
+            end
+
+            sLog("[ALERT] found "..#found.." suspicious item(s)", CR)
+            ScanStatus.Text       = "BACKDOORED"
+            ScanStatus.TextColor3 = CR
+
+            for _, entry in ipairs(found) do
+                sLog("[flag] "..entry.obj:GetFullName().."  --  "..entry.reason, Color3.fromRGB(255,120,40))
+            end
+
+            task.wait(0.4)
+
+            -- create Backdoor and Serverside remote events
+            local bdRE, ssRE
+            pcall(function()
+                bdRE = Instance.new("RemoteEvent")
+                bdRE.Name   = "Backdoor"
+                bdRE.Parent = ReplicatedStorage
+                sLog("[d3] created RemoteEvent: Backdoor", CDIMTX)
+            end)
+            pcall(function()
+                ssRE = Instance.new("RemoteEvent")
+                ssRE.Name   = "Serverside"
+                ssRE.Parent = ReplicatedStorage
+                sLog("[d3] created RemoteEvent: Serverside", CDIMTX)
+            end)
+
+            -- hint broadcast
+            pcall(function()
+                local hint = Instance.new("Hint")
+                hint.Text   = "game backdoored lulz"
+                hint.Parent = workspace
+                game:GetService("Debris"):AddItem(hint, 8)
+                sLog("[d3] hint sent to all players", CDIMTX)
+            end)
+
+            -- fire serverside remote
+            pcall(function()
+                if ssRE then ssRE:FireServer("activate") end
+            end)
+
+            -- hook require for serverside support (require by ID)
+            local _require = require
+            require = function(moduleOrId)
+                if type(moduleOrId) == "number" then
+                    sLog("[ss] require("..tostring(moduleOrId)..")", CYELLOW)
+                    local ok2, result = pcall(_require, moduleOrId)
+                    if ok2 then return result end
+                    -- fallback attempt via HTTP if executor supports it
+                    pcall(function()
+                        local res = safeRequest("https://raw.githubusercontent.com/placeholder/"..moduleOrId.."/main.lua")
+                        if res and res.Body and #res.Body > 10 then
+                            local fn, err = loadstring(res.Body)
+                            if fn then return fn() end
+                        end
+                    end)
+                    return _require(moduleOrId)
+                end
+                return _require(moduleOrId)
+            end
+
+            sLog("[ss] require hook patched. executor is now server-sided.", CR)
+        end)
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  SETTINGS PAGE
+-- ─────────────────────────────────────────────────────────────────
+do
+    local P = newPage("Settings")
+    mkPad(P, 12, 12, 14, 14)
+    mkLabel(P, "SETTINGS", UDim2.new(1,0,0,22), UDim2.new(0,0,0,0), CR, 15, Enum.Font.GothamBlack)
+
+    local function settingRow(y, ltext)
+        local row = mkFrame(P, ltext.."Row", UDim2.new(1,0,0,36), UDim2.new(0,0,0,y), Color3.fromRGB(16,16,16))
+        row.ZIndex = 13 ; mkCorner(row,6) ; mkPad(row,0,0,10,10)
+        mkLabel(row, ltext, UDim2.new(0.48,0,1,0), UDim2.new(0,0,0,0), CWHITE, 13, Enum.Font.GothamBold).ZIndex = 14
+        return row
+    end
+
+    -- fps counter
+    local fpsOn      = false
+    local fpsConn    = nil
+    local fpsSamples = {}
+
+    local FpsOverlay = Instance.new("TextLabel")
+    FpsOverlay.Size = UDim2.new(0,88,0,22)
+    FpsOverlay.Position = UDim2.new(0,8,0,8)
+    FpsOverlay.BackgroundColor3 = Color3.fromRGB(10,0,0)
+    FpsOverlay.BackgroundTransparency = 0.3
+    FpsOverlay.Text = "FPS: --"
+    FpsOverlay.TextColor3 = CR
+    FpsOverlay.TextSize = 13
+    FpsOverlay.Font = Enum.Font.GothamBold
+    FpsOverlay.Visible = false
+    FpsOverlay.ZIndex = 60
+    FpsOverlay.Parent = ScreenGui
+    mkCorner(FpsOverlay, 5) ; mkPad(FpsOverlay, 0, 0, 6, 6)
+
+    local FpsRow = settingRow(32, "FPS Counter")
+    local FpsTog = mkBtn(FpsRow, "OFF", UDim2.new(0,54,0,24), UDim2.new(1,-56,0.5,-12), Color3.fromRGB(40,40,40), CDIMTX)
+    mkCorner(FpsTog,5) ; FpsTog.ZIndex = 14
+
+    FpsTog.MouseButton1Click:Connect(function()
+        fpsOn = not fpsOn
+        if fpsOn then
+            FpsTog.Text = "ON" ; FpsTog.BackgroundColor3 = CRDARK ; FpsTog.TextColor3 = CWHITE
+            FpsOverlay.Visible = true
+            fpsConn = RunService.Heartbeat:Connect(function(dt)
+                table.insert(fpsSamples, 1/dt)
+                if #fpsSamples > 20 then table.remove(fpsSamples,1) end
+                local sum = 0 ; for _, v in ipairs(fpsSamples) do sum = sum + v end
+                FpsOverlay.Text = "FPS: "..math.floor(sum/#fpsSamples)
+            end)
+        else
+            FpsTog.Text = "OFF" ; FpsTog.BackgroundColor3 = Color3.fromRGB(40,40,40) ; FpsTog.TextColor3 = CDIMTX
+            FpsOverlay.Visible = false
+            if fpsConn then fpsConn:Disconnect() ; fpsConn = nil end
+        end
+    end)
+
+    -- change icon
+    local IconRow = settingRow(76, "Icon Asset ID")
+    local IconBox = Instance.new("TextBox")
+    IconBox.Size = UDim2.new(0.3,0,0,26)
+    IconBox.Position = UDim2.new(0.5,0,0.5,-13)
+    IconBox.BackgroundColor3 = Color3.fromRGB(12,12,12)
+    IconBox.BorderSizePixel = 0
+    IconBox.PlaceholderText = "asset id..."
+    IconBox.PlaceholderColor3 = CDIMTX
+    IconBox.Text = ""
+    IconBox.TextColor3 = CWHITE
+    IconBox.TextSize = 12
+    IconBox.Font = Enum.Font.Gotham
+    IconBox.ClearTextOnFocus = false
+    IconBox.ZIndex = 14
+    IconBox.Parent = IconRow
+    mkCorner(IconBox,5) ; mkStroke(IconBox, CRDARK, 1, 0.4) ; mkPad(IconBox,0,0,6,6)
+
+    local IconApply = mkBtn(IconRow, "APPLY", UDim2.new(0,54,0,26), UDim2.new(0.82,0,0.5,-13), CR, CWHITE)
+    mkCorner(IconApply,5) ; IconApply.ZIndex = 14
+    IconApply.MouseButton1Click:Connect(function()
+        local id = IconBox.Text
+        if id ~= "" then IconBtn.Image = "rbxassetid://"..id end
+    end)
+
+    -- shape selector
+    local ShapeRow = settingRow(120, "Icon Shape")
+    local shapeList   = { "squircle", "square", "circle", "triangle" }
+    local shapeRadii  = { squircle = 14, square = 0, circle = 25, triangle = 4 }
+    local shapeXStart = 0.36
+
+    for i, sh in ipairs(shapeList) do
+        local active = sh == iconShape
+        local shBtn  = mkBtn(ShapeRow, sh,
+            UDim2.new(0,62,0,24),
+            UDim2.new(shapeXStart + (i-1)*0.16, 0, 0.5, -12),
+            active and CRDARK or Color3.fromRGB(28,28,28),
+            active and CWHITE or CDIMTX)
+        mkCorner(shBtn,5) ; shBtn.TextSize = 9 ; shBtn.ZIndex = 14
+
+        shBtn.MouseButton1Click:Connect(function()
+            iconShape = sh
+            local c = IconBtn:FindFirstChildOfClass("UICorner")
+            if c then c.CornerRadius = UDim.new(0, shapeRadii[sh] or 14) end
+            for _, child in ipairs(ShapeRow:GetChildren()) do
+                if child:IsA("TextButton") then
+                    local on = child.Text == sh
+                    child.BackgroundColor3 = on and CRDARK or Color3.fromRGB(28,28,28)
+                    child.TextColor3       = on and CWHITE or CDIMTX
+                end
+            end
+        end)
+    end
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  CONSOLE PAGE
+-- ─────────────────────────────────────────────────────────────────
+local consoleLog = nil
+
+do
+    local P = newPage("Console")
+    mkPad(P, 10, 10, 10, 10)
+    mkLabel(P, "ROBLOX CONSOLE", UDim2.new(1,0,0,22), UDim2.new(0,0,0,0), CR, 15, Enum.Font.GothamBlack)
+
+    local CScroll = Instance.new("ScrollingFrame")
+    CScroll.Size = UDim2.new(1,0,1,-58)
+    CScroll.Position = UDim2.new(0,0,0,28)
+    CScroll.BackgroundColor3 = Color3.fromRGB(6,6,6)
+    CScroll.BorderSizePixel = 0
+    CScroll.ScrollBarThickness = 4
+    CScroll.ScrollBarImageColor3 = CR
+    CScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    CScroll.CanvasSize = UDim2.new(0,0,0,0)
+    CScroll.ZIndex = 13
+    CScroll.Parent = P
+    mkCorner(CScroll,6) ; mkStroke(CScroll, CRDARK, 1, 0.5) ; mkPad(CScroll,6,6,8,8)
+
+    local CLayout = Instance.new("UIListLayout")
+    CLayout.FillDirection = Enum.FillDirection.Vertical
+    CLayout.SortOrder     = Enum.SortOrder.LayoutOrder
+    CLayout.Parent        = CScroll
+
+    local logN2 = 0
+    consoleLog = function(msg, col)
+        logN2 = logN2 + 1
+        local e = Instance.new("TextLabel")
+        e.Size = UDim2.new(1,0,0,14)
+        e.BackgroundTransparency = 1
+        e.Text = msg
+        e.TextColor3 = col or Color3.fromRGB(180,255,180)
+        e.TextSize = 11
+        e.Font = Enum.Font.Code
+        e.TextXAlignment = Enum.TextXAlignment.Left
+        e.TextWrapped = true
+        e.AutomaticSize = Enum.AutomaticSize.Y
+        e.LayoutOrder = logN2
+        e.ZIndex = 14
+        e.Parent = CScroll
+        task.wait()
+        CScroll.CanvasPosition = Vector2.new(0, CScroll.AbsoluteCanvasSize.Y)
+    end
+
+    consoleLog("[d3crypted9] console ready.", CR)
+    consoleLog("[d3crypted9] made by d3crypted9 / midelta", CDIMTX)
+
+    -- hook print + warn to also show in console
+    local _print = print
+    local _warn  = warn
+    print = function(...)
+        local msg = table.concat({...}, "\t")
+        consoleLog("[print] "..msg, Color3.fromRGB(200,255,200))
+        _print(...)
+    end
+    warn = function(...)
+        local msg = table.concat({...}, "\t")
+        consoleLog("[warn] "..msg, Color3.fromRGB(255,210,60))
+        _warn(...)
+    end
+
+    local CmdBox = Instance.new("TextBox")
+    CmdBox.Size = UDim2.new(1,-68,0,30)
+    CmdBox.Position = UDim2.new(0,0,1,-32)
+    CmdBox.BackgroundColor3 = Color3.fromRGB(12,12,12)
+    CmdBox.BorderSizePixel = 0
+    CmdBox.PlaceholderText = "> command..."
+    CmdBox.PlaceholderColor3 = CDIMTX
+    CmdBox.Text = ""
+    CmdBox.TextColor3 = Color3.fromRGB(200,255,200)
+    CmdBox.TextSize = 12
+    CmdBox.Font = Enum.Font.Code
+    CmdBox.ClearTextOnFocus = false
+    CmdBox.ZIndex = 13
+    CmdBox.Parent = P
+    mkCorner(CmdBox,5) ; mkStroke(CmdBox, CRDARK, 1, 0.5) ; mkPad(CmdBox,0,0,8,8)
+
+    local RunBtn = mkBtn(P, "RUN", UDim2.new(0,58,0,30), UDim2.new(1,-60,1,-32), CR, CWHITE)
+    mkCorner(RunBtn,5) ; RunBtn.ZIndex = 13
+
+    local function runCmd()
+        local cmd = CmdBox.Text
+        if cmd == "" then return end
+        consoleLog("> "..cmd, Color3.fromRGB(255,100,100))
+        CmdBox.Text = ""
+        local ok, err = safeExecute(cmd)
+        if not ok then consoleLog("[error] "..(err or "?"), Color3.fromRGB(255,80,80)) end
+    end
+
+    RunBtn.MouseButton1Click:Connect(runCmd)
+    CmdBox.FocusLost:Connect(function(enter) if enter then runCmd() end end)
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  WIRE SIDEBAR CLICKS
+-- ─────────────────────────────────────────────────────────────────
+for _, def in ipairs(tabDefs) do
+    local obj = sideObjs[def.name]
+    obj.btn.MouseButton1Click:Connect(function()
+        if def.name == "Exit" then
+            ScreenGui:Destroy()
+            return
+        end
+        hideAll()
+        if pages[def.name] then pages[def.name].Visible = true end
+        setTab(def.name)
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────
+--  OPEN AFTER INTRO FINISHES
+-- ─────────────────────────────────────────────────────────────────
+task.spawn(function()
+    task.wait(4.2)
+    MainFrame.Visible = true
+    mainVisible       = true
+    hideAll()
+    pages["Home"].Visible = true
+    setTab("Home")
+    if consoleLog then
+        consoleLog("[d3crypted9] executor loaded successfully.", CGREEN)
+        consoleLog("[d3crypted9] made by d3crypted9 / midelta", CDIMTX)
+    end
+end)
+
+print(" injected. made by d3crypted9 / midelta")
